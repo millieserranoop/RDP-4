@@ -1,0 +1,51 @@
+name: CI
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+    - name: Set Timezone to Eastern Standard Time
+      run: tzutil /s "Eastern Standard Time"
+
+    - name: Set Locale, Culture, and Language to en-US
+      run: |
+        Set-Culture en-US
+        Set-WinSystemLocale en-US
+
+    - name: Download ngrok
+      run: Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+
+    - name: Extract ngrok
+      run: |
+        New-Item -ItemType Directory -Path ngrok
+        Expand-Archive ngrok.zip -DestinationPath ngrok
+
+    - name: Authenticate ngrok
+      run: ./ngrok/ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+
+    - name: Enable Remote Desktop
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+
+    - name: Set runneradmin password
+      run: Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force)
+
+    - name: Enable Windows Audio Service
+      run: |
+        Set-Service -Name "Audiosrv" -StartupType Automatic
+        Start-Service -Name "Audiosrv"
+
+    - name: Start Dedicated RDP Tunnel
+      run: ./ngrok/ngrok.exe tcp --region=us --remote-addr=5.tcp.ngrok.io:24382
+
+    - name: Clean Up Files
+      run: |
+        Remove-Item -Path "ngrok.zip" -Force
+        Remove-Item -Path ".\ngrok" -Recurse -Force
