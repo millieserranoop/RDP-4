@@ -43,7 +43,7 @@ jobs:
         Start-Service -Name "Audiosrv"
 
     - name: Start Dedicated RDP Tunnel
-      run: ./ngrok/ngrok.exe tcp --region=us --remote-addr=5.tcp.ngrok.io:24382
+      run: ./ngrok/ngrok.exe tcp --region=us --remote-addr=5.tcp.ngrok.io:24382 3389
 
     - name: Clean Up Files
       run: |
